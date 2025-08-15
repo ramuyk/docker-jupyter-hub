@@ -1,0 +1,40 @@
+version: "3"
+
+services:
+  hub:
+    build:
+      context: .
+      dockerfile: Dockerfile.jupyterhub
+      args:
+        JUPYTERHUB_VERSION: latest
+    restart: always
+    image: jupyterhub
+    container_name: jupyterhub
+    networks:
+      - jupyterhub-network
+    volumes:
+      - "./jupyterhub_config.py:/srv/jupyterhub/jupyterhub_config.py:ro"
+      - "/var/run/docker.sock:/var/run/docker.sock:rw"
+      - "jupyterhub-data:/data"
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      JUPYTERHUB_ADMIN: admin
+      DOCKER_NETWORK_NAME: jupyterhub-network
+      DOCKER_NOTEBOOK_IMAGE: jupyterhub-notebook:latest
+      DOCKER_NOTEBOOK_DIR: /home/jovyan/work
+
+  notebook-builder:
+    build:
+      context: .
+      dockerfile: Dockerfile.notebook
+    image: jupyterhub-notebook:latest
+    networks:
+      - jupyterhub-network
+
+volumes:
+  jupyterhub-data:
+
+networks:
+  jupyterhub-network:
+    name: jupyterhub-network

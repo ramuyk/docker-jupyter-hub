@@ -1,0 +1,68 @@
+FROM quay.io/jupyter/base-notebook:latest
+
+USER root
+
+# Dependências de SO
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        curl \
+        vim \
+        tmux \
+        openjdk-17-jdk \
+        gcc g++ make python3-dev \
+        libpq-dev postgresql-client \
+        golang-go && \
+    curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && \
+    apt-get install -y --no-install-recommends nodejs && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+COPY conf/vimrc /etc/vim/vimrc
+
+# tslab (JavaScript/TypeScript kernel)
+RUN npm install -g tslab
+
+# PostgreSQL kernel (root)
+RUN pip install --no-cache-dir \
+      psycopg2-binary \
+      tabulate && \
+    pip install --no-cache-dir --no-build-isolation --no-deps postgres_kernel && \
+    python -m postgres_kernel install --sys-prefix
+
+RUN apt-get update && apt-get install -y --no-install-recommends git golang-go && \
+    rm -rf /var/lib/apt/lists/*
+
+# go kernel
+ENV GOBIN=/usr/local/bin
+RUN go version && \
+    go install github.com/gopherdata/gophernotes@latest && \
+    test -x /usr/local/bin/gophernotes
+RUN mkdir -p /opt/conda/share/jupyter/kernels/gophernotes && \
+    printf '{\n\
+  "argv": ["/usr/local/bin/gophernotes", "{connection_file}"],\n\
+  "display_name": "Go (gophernotes)",\n\
+  "language": "go",\n\
+  "codemirror_mode": "go",\n\
+  "env": {"PATH": "/usr/local/bin:/usr/bin:/bin"}\n\
+}\n' > /opt/conda/share/jupyter/kernels/gophernotes/kernel.json
+
+# Volta para jovyan
+USER $NB_UID
+
+# Bash kernel
+RUN pip install --no-cache-dir bash_kernel && \
+    python -m bash_kernel.install
+
+# Kotlin kernel
+RUN pip install --no-cache-dir kotlin-jupyter-kernel && \
+    python -m kotlin_kernel add-kernel
+
+# Registrar tslab no Jupyter
+RUN tslab install --python=python3
+
+# C++ kernel via xeus-cling (conda/mamba)
+RUN mamba install -y -c conda-forge xeus-cling && \
+    mamba clean --all -f -y
+
+# extensions
+RUN pip install jupyterlab_execute_time
+RUN pip install jupyterlab-system-monitor
