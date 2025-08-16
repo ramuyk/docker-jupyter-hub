@@ -20,6 +20,7 @@ COPY conf/vimrc /etc/vim/vimrc
 
 # tslab (JavaScript/TypeScript kernel)
 RUN npm install -g tslab
+RUN chown -R $NB_UID:$NB_GID /home/jovyan/.npm
 
 # PostgreSQL kernel (root)
 RUN pip install --no-cache-dir \
@@ -62,7 +63,15 @@ RUN tslab install --python=python3
 # C++ kernel via xeus-cling (conda/mamba)
 RUN mamba install -y -c conda-forge xeus-cling && \
     mamba clean --all -f -y
+RUN jupyter kernelspec remove xcpp11 -y && \
+    jupyter kernelspec remove xcpp14 -y
+
+# Define tema padrão para JupyterLab
+RUN mkdir -p ~/.jupyter/lab/user-settings/@jupyterlab/apputils-extension && \
+    echo '{\
+  "theme": "JupyterLab Dark"\
+}' > ~/.jupyter/lab/user-settings/@jupyterlab/apputils-extension/themes.jupyterlab-settings
 
 # extensions
 RUN pip install jupyterlab_execute_time
-RUN pip install jupyterlab-system-monitor
+RUN pip install jupyter-console
